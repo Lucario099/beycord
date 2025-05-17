@@ -27,17 +27,19 @@ const client = new Client({
 });
 
 // ─── Load Commands ───────────────────────────────────────────────────────────
-fs.readdirSync("./commands").forEach(dir => {
-  fs.readdirSync(`./commands/${dir}`).forEach(file => {
-    if (file.endsWith(".js")) {
-      let pull = require(`./commands/${dir}/${file}`);
-      cmds.set(file.split(".")[0], pull);
-      if (pull.help && pull.help.aliases) {
-        pull.help.aliases.forEach(alias => aliases.set(alias, file.split(".")[0]));
+fs.readdirSync("./commands", { withFileTypes: true })
+  .filter(dirent => dirent.isDirectory())
+  .forEach(dir => {
+    fs.readdirSync(`./commands/${dir.name}`).forEach(file => {
+      if (file.endsWith(".js")) {
+        let pull = require(`./commands/${dir.name}/${file}`);
+        cmds.set(file.split(".")[0], pull);
+        if (pull.help && pull.help.aliases) {
+          pull.help.aliases.forEach(alias => aliases.set(alias, file.split(".")[0]));
+        }
       }
-    }
+    });
   });
-});
 
 // ─── Event: Bot Ready ────────────────────────────────────────────────────────
 client.on("ready", () => {
