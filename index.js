@@ -1,26 +1,14 @@
 // ─── Render Keep-Alive Server ───────────────────────────────────────────────
 const express = require('express');
-const app     = express();
-const PORT    = process.env.PORT || 3000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.get('/', (_req, res) => res.send('Beycord Bot is alive!'));
 app.listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-// ─── Beycord Original Setup ─────────────────────────────────────────────────
-// Paste everything below this line from the original `index.js` of the Beycord repo
-// For example:
-const Discord = require("discord.js");
-const client = new Discord.Client({
-  intents: [
-    Discord.Intents.FLAGS.GUILDS,
-    Discord.Intents.FLAGS.GUILD_MESSAGES,
-    Discord.Intents.FLAGS.GUILD_MEMBERS,
-    Discord.Intents.FLAGS.MESSAGE_CONTENT // May need enabling in developer portal
-  ]
-});
-
+// ─── Beycord Setup ──────────────────────────────────────────────────────────
+const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
 const MongoClient = require("mongodb").MongoClient;
 const fs = require("fs");
 
@@ -29,6 +17,16 @@ let db;
 let cmds = new Map();
 let aliases = new Map();
 
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent
+  ]
+});
+
+// ─── Load Commands ───────────────────────────────────────────────────────────
 fs.readdirSync("./commands").forEach(dir => {
   fs.readdirSync(`./commands/${dir}`).forEach(file => {
     if (file.endsWith(".js")) {
@@ -41,10 +39,12 @@ fs.readdirSync("./commands").forEach(dir => {
   });
 });
 
+// ─── Event: Bot Ready ────────────────────────────────────────────────────────
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
+// ─── Event: Message Create ───────────────────────────────────────────────────
 client.on("messageCreate", async message => {
   if (message.author.bot || !message.guild || !message.content.startsWith(prefix)) return;
 
@@ -62,8 +62,10 @@ client.on("messageCreate", async message => {
   }
 });
 
-MongoClient.connect(process.env.MONGO, { useUnifiedTopology: true }, (err, database) => {
-  if (err) return console.error(err);
-  db = database.db("beycord");
-  client.login(process.env.TOKEN);
-});
+// ─── Connect to MongoDB and Start Bot ────────────────────────────────────────
+MongoClient.connect(process.env.MONGO, { useUnifiedTopology: true })
+  .then(database => {
+    db = database.db("beycord");
+    client.login(process.env.TOKEN);
+  })
+  .catch(console.error);
