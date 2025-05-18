@@ -1,5 +1,5 @@
 // ─── Render Keep-Alive ───────────────────────────────────────────────────────
-require("../keepalive.js"); // Ensure this path is correct
+require('./keepalive.js'); // Ensure this path is correct
 
 // ─── Beycord Setup ──────────────────────────────────────────────────────────
 const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
