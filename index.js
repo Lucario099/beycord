@@ -1,71 +1,61 @@
-// ─── Render Keep-Alive ───────────────────────────────────────────────────────
-require('./keepalive.js'); // Ensure this path is correct
-
-// ─── Beycord Setup ──────────────────────────────────────────────────────────
-const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
+const Eris = require("eris");
 const MongoClient = require("mongodb").MongoClient;
 const fs = require("fs");
-const path = require("path");
+const express = require("express");
 
+// ─── Keepalive Web Server ─────────────────────────────────────────────────
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.get("/", (_req, res) => res.send("Beycord Bot is alive!"));
+app.listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
+
+// ─── Bot Setup ───────────────────────────────────────────────────────────
 const prefix = ";";
 let db;
 let cmds = new Map();
 let aliases = new Map();
-
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent
-  ]
+const client = new Eris(process.env.TOKEN, {
+  intents: ["guilds", "guildMessages", "guildMembers", "messageContent"]
 });
 
-// ─── Load Commands ───────────────────────────────────────────────────────────
-const commandsPath = path.join(__dirname, "commands");
-
-fs.readdirSync(commandsPath).forEach(file => {
+// ─── Load Commands ────────────────────────────────────────────────────────
+fs.readdirSync("./commands").forEach(file => {
   if (file.endsWith(".js")) {
-    try {
-      const pull = require(path.join(commandsPath, file));
-      const name = file.split(".")[0];
-      cmds.set(name, pull);
-      if (pull.help?.aliases) {
-        pull.help.aliases.forEach(alias => aliases.set(alias, name));
-      }
-    } catch (err) {
-      console.error(`Failed to load command ${file}:`, err);
+    let pull = require(`./commands/${file}`);
+    cmds.set(file.split(".")[0], pull);
+    if (pull.help && pull.help.aliases) {
+      pull.help.aliases.forEach(alias => aliases.set(alias, file.split(".")[0]));
     }
   }
 });
 
-// ─── Event: Bot Ready ────────────────────────────────────────────────────────
+// ─── Event: Bot Ready ─────────────────────────────────────────────────────
 client.on("ready", () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.username}`);
 });
 
-// ─── Event: Message Create ───────────────────────────────────────────────────
+// ─── Event: Message Create ────────────────────────────────────────────────
 client.on("messageCreate", async message => {
-  if (message.author.bot || !message.guild || !message.content.startsWith(prefix)) return;
+  if (message.author.bot || !message.guildID || !message.content.startsWith(prefix)) return;
 
-  const args = message.content.slice(prefix.length).trim().split(/ +/g);
-  const command = args.shift().toLowerCase();
-  const cmdFile = cmds.get(command) || cmds.get(aliases.get(command));
-  
+  let args = message.content.slice(prefix.length).trim().split(/ +/g);
+  let command = args.shift().toLowerCase();
+
+  let cmdFile = cmds.get(command) || cmds.get(aliases.get(command));
   if (cmdFile) {
-    const cmdt = new Date();
+    let cmdt = new Date();
     try {
       await cmdFile.run(client, message, args, prefix, null, db, cmdt);
     } catch (e) {
-      console.error(`Error executing ${command}:`, e);
+      console.error(e);
     }
   }
 });
 
-// ─── Connect to MongoDB and Start Bot ────────────────────────────────────────
+// ─── MongoDB Connection ───────────────────────────────────────────────────
 MongoClient.connect(process.env.MONGO, { useUnifiedTopology: true })
   .then(database => {
     db = database.db("beycord");
-    client.login(process.env.TOKEN);
+    client.connect(); // Only connect Eris bot after DB is ready
   })
   .catch(console.error);
