@@ -2,9 +2,9 @@
   "name": "beycord",
   "version": "1.0.0",
   "description": "An open-source Discord Beyblade bot!",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -25,7 +25,7 @@
   "dependencies": {
     "discord.js": "^14.11.0",
     "express": "^4.18.2",
-    "mongodb": "^5.7.0", 
+    "mongodb": "^5.7.0",
     "dotenv": "^16.3.1",
     "eris-reactions": "^0.1.0",
     "fuse.js": "^6.6.2",
