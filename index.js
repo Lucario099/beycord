@@ -1,16 +1,11 @@
-// ─── Render Keep-Alive Server ───────────────────────────────────────────────
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (_req, res) => res.send('Beycord Bot is alive!'));
-app.listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Render Keep-Alive ───────────────────────────────────────────────────────
+require("../keepalive.js"); // Ensure this path is correct
 
 // ─── Beycord Setup ──────────────────────────────────────────────────────────
 const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
 const MongoClient = require("mongodb").MongoClient;
 const fs = require("fs");
+const path = require("path");
 
 const prefix = ";";
 let db;
@@ -27,12 +22,19 @@ const client = new Client({
 });
 
 // ─── Load Commands ───────────────────────────────────────────────────────────
-fs.readdirSync("./commands").forEach(file => {
+const commandsPath = path.join(__dirname, "commands");
+
+fs.readdirSync(commandsPath).forEach(file => {
   if (file.endsWith(".js")) {
-    let pull = require(`./commands/${file}`);
-    cmds.set(file.split(".")[0], pull);
-    if (pull.help && pull.help.aliases) {
-      pull.help.aliases.forEach(alias => aliases.set(alias, file.split(".")[0]));
+    try {
+      const pull = require(path.join(commandsPath, file));
+      const name = file.split(".")[0];
+      cmds.set(name, pull);
+      if (pull.help?.aliases) {
+        pull.help.aliases.forEach(alias => aliases.set(alias, name));
+      }
+    } catch (err) {
+      console.error(`Failed to load command ${file}:`, err);
     }
   }
 });
@@ -46,16 +48,16 @@ client.on("ready", () => {
 client.on("messageCreate", async message => {
   if (message.author.bot || !message.guild || !message.content.startsWith(prefix)) return;
 
-  let args = message.content.slice(prefix.length).trim().split(/ +/g);
-  let command = args.shift().toLowerCase();
-
-  let cmdFile = cmds.get(command) || cmds.get(aliases.get(command));
+  const args = message.content.slice(prefix.length).trim().split(/ +/g);
+  const command = args.shift().toLowerCase();
+  const cmdFile = cmds.get(command) || cmds.get(aliases.get(command));
+  
   if (cmdFile) {
-    let cmdt = new Date();
+    const cmdt = new Date();
     try {
       await cmdFile.run(client, message, args, prefix, null, db, cmdt);
     } catch (e) {
-      console.error(e);
+      console.error(`Error executing ${command}:`, e);
     }
   }
 });
